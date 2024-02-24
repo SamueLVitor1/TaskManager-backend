@@ -1,3 +1,9 @@
+const { default: mongoose } = require("mongoose");
+const { notAllowedFieldsToUpdateError } = require("../errors/general.errors");
+const {
+    notFoundError,
+    objectIdCastError,
+} = require("../errors/mongodb.errors");
 const TaskModel = require("../models/task.model");
 
 class TaskController {
@@ -21,13 +27,14 @@ class TaskController {
             const task = await TaskModel.findById(taskId);
 
             if (!task) {
-                return this.res
-                    .status(404)
-                    .send("Essa tarefa não foi encontrada");
+                return notFoundError(this.res);
             }
 
             this.res.status(200).send(task);
         } catch (error) {
+            if (error instanceof mongoose.Error.CastError) {
+                return objectIdCastError(this.res);
+            }
             this.res.status(500).send(error.message);
         }
     }
@@ -49,6 +56,10 @@ class TaskController {
 
             const taskToUpdate = await TaskModel.findById(taskId);
 
+            if (!taskToUpdate) {
+                return notFoundError(this.res);
+            }
+
             const allowedUpdates = ["isCompleted"];
             const requestedUpdates = Object.keys(taskData);
 
@@ -56,15 +67,16 @@ class TaskController {
                 if (allowedUpdates.includes(update)) {
                     taskToUpdate[update] = taskData[update];
                 } else {
-                    return this.res
-                        .status(500)
-                        .send("Um ou mais campos inseridos não são editáveis.");
+                    return notAllowedFieldsToUpdateError(this.res);
                 }
             }
 
             await taskToUpdate.save();
             return this.res.status(200).send(taskToUpdate);
         } catch (error) {
+            if (error instanceof mongoose.Error.CastError) {
+                return objectIdCastError(this.res);
+            }
             return this.res.status(500).send(error.message);
         }
     }
@@ -76,14 +88,15 @@ class TaskController {
             const taskToDelete = await TaskModel.findById(taskID);
 
             if (!taskToDelete) {
-                return this.res
-                    .status(404)
-                    .send("Essa tarefa não foi encontrada");
+                return notFoundError(this.res);
             }
 
             const deletedTask = await TaskModel.findByIdAndDelete(taskID);
             this.res.status(200).send(deletedTask);
         } catch (error) {
+            if (error instanceof mongoose.Error.CastError) {
+                return objectIdCastError(this.res);
+            }
             this.res.status(500).send(error.message);
         }
     }
